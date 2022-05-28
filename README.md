@@ -4,76 +4,128 @@
 
 With module federations we can distinguished between local and remote modules, `Local modules` are the ones that are part of the current applications and the `Remote modules` are the ones that will be loaded from the `container`.
 
-## Exposing modules
+## Sharing state between applications
 
-So, how do we create this `container`? We just need to use the [ModuleFederationPlugin](https://webpack.js.org/plugins/module-federation-plugin/), this plugin allows us to expose the modules that we want to share in the said `container`.
+Another common problem in `micro services` is the sharing of state between applications. There a re bunch of ways to tackle this problem, int his case I have tried using the `Observables` pattern to tackle the issue.
 
-> ./vue-app/webpack.config.js line 59
+I've installed a library to simplify the global management of the observables but the core concepts are the same.
 
-```js
-new ModuleFederationPlugin({
-    name: 'vueApp', // Name of the module
-    filename: 'remoteEntry.js', // Name of the auto-generated remote entry file
-    exposes: {
-        './Sample': './src/bootstrap' // Exposes the modules that we want to share
-    },
-}),
-```
+The idea is simple, we create an `abstraction` layer, in this case the observables and then each app will implement the `subscription` and `publish` pattern the way it wants.
 
-## Consuming exposed Modules
+First of all both apps need to know how to target the same observable, this is as simple as defining a common name for both.
 
-As we did with the remote module we need to tell webpack what we want to consume and from where
-
-> ./react-app/webpack.config.js line 31
-
-```js
-new ModuleFederationPlugin({
-      name: 'reactApp', // Name of the Module
-      remotes: {
-        vueApp: 'vueApp@http://localhost:3002/remoteEntry.js', // Remote modules that we want to consume and the container where its served
-      },
-    }),
-```
-
-And now we can use the `vueApp` module in our `react-app` with a simple import
-
-> Slightly changed ./react-app/src/App.js
+For `React` I've created a `Context` to manage the observables.
 
 ```jsx
-import React, { useEffect, useRef } from 'react';
-import { mount } from 'vueApp/Sample'; // We import the exposed module
+import React, { createContext } from 'react';
+import { Observable } from 'windowed-observable';
 
-// Since it is dynamically imported we need to mount it asynchronously
-const App = () => {
-  const ref = useRef(null);
+const AppContext = createContext();
+
+// We create the Observable and define its name, this will be shared between apps if we want to share its state
+const observable = new Observable('AppObservable');
+
+const AppProvider = ({ children }) => {
+  // We Wrap the children with the Provider so they can have access to the observable
+  return (
+    <AppContext.Provider value={observable}>{children}</AppContext.Provider>
+  );
+};
+
+export { AppProvider, AppContext };
+```
+
+In `vue` I just implemented it directly in the `component`.
+
+```js
+import { ref, onMounted, onUnmounted } from 'vue';
+import { Observable } from 'windowed-observable';
+
+const observable = new Observable('AppObservable');
+
+// ...
+```
+
+This is pretty much all the needed setup, now we only need to `consume` the observable.
+
+I created a custom hook for `react` that will manage the observable to simplify the work of the components.
+
+```jsx
+import { useEffect, useContext } from 'react';
+import { AppContext } from '../Context/AppContext';
+
+const useObservable = (callback) => {
+  const observable = useContext(AppContext);
 
   useEffect(() => {
-    mount(ref.current); // the mount function is exposed by the module and it will attach the component to the ref element we are sending
+    // We subscribe an action to the observable when mounted
+    observable.subscribe(callback);
+
+    // We unSubscribe the action when unmounted
+    return () => observable.unsubscribe(callback);
   }, []);
 
+  // We notify all the observers when there is an update
+  return (data) => observable.publish(data);
+};
+
+export { useObservable };
+```
+
+And the component:
+
+```jsx
+import React, { useState } from 'react';
+import { mount } from 'vueApp/Sample';
+
+import { useObservable } from './hooks/useObservable';
+
+const App = () => {
+  const [count, setCount] = useState(0);
+
+  // We send the action when an update happens, in this case setting the new count to the state
+  const publish = useObservable(setCount);
+
   return (
-    <div>
-      <h1>This is a React App!</h1>
-      <div ref={ref} /> {/* Node where the vue app will attach to*/}
-    </div>
+    <>
+      <h1>This is a React App! {count}</h1>
+
+      {/* We notify the new count to all the observers*/}
+      <button onClick={() => publish(count + 1)}>
+        Add to count with React
+      </button>
+    </>
   );
 };
 
 export default App;
 ```
 
-> ./vue-app/src/bootstrap.js
+And we do the same in the `vue` application:
 
 ```js
-import { createApp } from 'vue';
-import Sample from './components/Sample.vue'; // the Bootstrapper picks the component
+<script setup>
+//...
 
-// We expose an API to mount our component
-const mount = (el) => {
-  const app = createApp(Sample);
-  app.mount(el);
-};
+const observable = new Observable('AppObservable');
+const count = ref(0);
+
+// We notify all the subscribers with the new count
+const addCount = () => observable.publish(count.value + 1);
+const countObserver = (_count) => (count.value = _count);
+
+// Subscribe and unSubscribe the action to the Observer
+onMounted(() => observable.subscribe(countObserver));
+onUnmounted(() => observable.unsubscribe(countObserver));
+</script>
+
+<template>
+  <h1>This is a Vue App! {{ count }}</h1>
+  <button @click="addCount">Add to count with vue</button>
+</template>
 ```
+
+And that is everything, now, when the button in `vue` or `react` is clicked, the count in both apps will be updated since they are now sharing the same `observable` they notify each other and manage the state internally.
 
 ## How to run the project
 
