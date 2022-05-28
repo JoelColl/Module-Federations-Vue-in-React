@@ -75,6 +75,10 @@ const mount = (el) => {
 };
 ```
 
+## Sharing state between apps
+
+Check the [share-state branch](https://github.com/JoelColl/module-federations-vue-in-react/tree/share-state) to learn more on how to share state between the two apps.
+
 ## How to run the project
 
 - `npm install` or `yarn`
