@@ -6739,6 +6739,11 @@ wildcard@^2.0.0:
   resolved "https://registry.yarnpkg.com/wildcard/-/wildcard-2.0.0.tgz#a77d20e5200c6faaac979e4b3aadc7b3dd7f8fec"
   integrity sha512-JcKqAHLPxcdb9KM49dufGXn2x3ssnfjbcaQdLlfZsL9rH9wgDQjUtDxbo8NE0F6SFvydeu1VhZe7hZuHsB2/pw==
 
+windowed-observable@1.0.0:
+  version "1.0.0"
+  resolved "https://agency-commerce.pkgs.visualstudio.com/_packaging/Default/npm/registry/windowed-observable/-/windowed-observable-1.0.0.tgz#126f10f3345e30b09a780359e12956fac45b930a"
+  integrity sha1-Em8Q8zReMLCaeANZ4SlW+sRbkwo=
+
 wordwrap@^1.0.0:
   version "1.0.0"
   resolved "https://registry.yarnpkg.com/wordwrap/-/wordwrap-1.0.0.tgz#27584810891456a4171c8d0226441ade90cbcaeb"

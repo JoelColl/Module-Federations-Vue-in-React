@@ -1,7 +1,11 @@
-import React, { useEffect, useRef } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { mount } from 'vueApp/Sample';
 
+import { useObservable } from './hooks/useObservable';
+
 const App = () => {
+  const [count, setCount] = useState(0);
+  const publish = useObservable(setCount);
   const ref = useRef(null);
 
   useEffect(() => {
@@ -17,7 +21,14 @@ const App = () => {
         backgroundColor: 'cyan',
       }}
     >
-      <h1>This is a React App!</h1>
+      <h1>This is a React App! {count}</h1>
+      <button
+        onClick={() => {
+          publish(count + 1);
+        }}
+      >
+        Add to count with React
+      </button>
       <div ref={ref} />
     </div>
   );
